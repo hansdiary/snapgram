@@ -10,8 +10,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GKE_CLUSTER: snapgram-cluster
   GKE_ZONE: us-central1-a
-  BACKEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/snapgram-backend
-  FRONTEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/snapgram-frontend
+  BACKEND_IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/snapgram/snapgram-backend
+  FRONTEND_IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/snapgram/snapgram-frontend
 
 jobs:
   # ── Job 1 : Tests ──────────────────────────────────────────────
