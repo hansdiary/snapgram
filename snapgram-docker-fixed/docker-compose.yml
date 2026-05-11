@@ -1,0 +1,69 @@
+services:
+
+  # ── MongoDB ─────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: snapgram_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: snapgram
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - snapgram_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API + Socket.IO ──────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: snapgram_backend
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/snapgram
+      JWT_SECRET: ${JWT_SECRET:-changez_cette_valeur_super_secrete}
+      CLIENT_URL: http://localhost
+    volumes:
+      - uploads_data:/app/uploads   # persistance des images uploadées
+    networks:
+      - snapgram_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/auth/me"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Frontend React (Nginx) ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Au build React, les appels API passent par Nginx (même origin)
+        REACT_APP_API_URL: /api
+        REACT_APP_SOCKET_URL: ""   # chaîne vide = même origine (Nginx proxifie)
+    container_name: snapgram_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - snapgram_net
+
+volumes:
+  mongo_data:
+  uploads_data:
+
+networks:
+  snapgram_net:
+    driver: bridge
