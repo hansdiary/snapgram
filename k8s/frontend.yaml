@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: gcr.io/PROJECT_ID/snapgram-frontend:latest
+          image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-frontend:latest
           ports:
             - containerPort: 80
 ---
