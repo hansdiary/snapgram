@@ -70,6 +70,11 @@ io.on('connection', (socket) => {
 // Rendre io accessible aux routes
 app.set('io', io);
 
+// Health check pour Kubernetes
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/snapgram')
   .then(() => console.log('✅ MongoDB connecté'))
