@@ -49,7 +49,7 @@ spec:
             - name: CORS_ORIGIN
               value: "http://YOUR_DOMAIN"
 
-                        - name: CLOUDINARY_CLOUD_NAME
+            - name: CLOUDINARY_CLOUD_NAME
               valueFrom:
                 secretKeyRef:
                   name: cloudinary-secret
