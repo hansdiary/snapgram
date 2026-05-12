@@ -11,21 +11,28 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (!user) return;
 
-    // En prod Nginx proxifie /socket.io/, donc on utilise window.location.origin
-    // En dev on pointe directement sur le backend
-    const socketUrl = process.env.REACT_APP_SOCKET_URL || window.location.origin;
-
-    socketRef.current = io(socketUrl, {
-      withCredentials: true,
+    socketRef.current = io(window.location.origin, {
       path: '/socket.io/',
+      // Forcer polling uniquement — Apache ne supporte pas l'upgrade WebSocket
+      transports: ['polling'],
+      withCredentials: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
     });
 
-    socketRef.current.emit('user:join', user._id);
+    socketRef.current.on('connect', () => {
+      console.log('Socket connecté via polling');
+      socketRef.current.emit('user:join', user._id);
+    });
+
+    socketRef.current.on('connect_error', (err) => {
+      console.warn('Socket erreur:', err.message);
+    });
 
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [user]);
+  }, [user?._id]);
 
   return (
     <SocketContext.Provider value={socketRef.current}>
