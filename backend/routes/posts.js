@@ -1,17 +1,24 @@
 const router = require('express').Router();
-const { Storage } = require('@google-cloud/storage');
 const multer = require('multer');
-
+const cloudinary = require('../config/cloudinary');
 const Post = require('../models/Post');
 const { protect } = require('../middleware/auth');
 
-// =========================
-// GOOGLE CLOUD STORAGE
-// =========================
 
-const storage = new Storage();
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      {
+        folder: 'snapgram-posts',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    ).end(fileBuffer);
+  });
+};
 
-const bucket = storage.bucket('snapgram-uploads');
 
 // =========================
 // MULTER CONFIG
@@ -43,36 +50,7 @@ const uploadPost = multer({
 // GCS UPLOAD FUNCTION
 // =========================
 
-const uploadToGCS = (file) => {
-  return new Promise((resolve, reject) => {
-    const filename = `${Date.now()}-${file.originalname}`;
 
-    const blob = bucket.file(filename);
-
-    const stream = blob.createWriteStream({
-      resumable: false,
-      metadata: {
-        contentType: file.mimetype,
-      },
-    });
-
-    stream.on('error', (err) => reject(err));
-
-    stream.on('finish', async () => {
-      try {
-        await blob.makePublic();
-
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-
-        resolve(publicUrl);
-      } catch (err) {
-        reject(err);
-      }
-    });
-
-    stream.end(file.buffer);
-  });
-};
 
 // =========================
 // GET STORIES
@@ -155,43 +133,28 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({
-          message: 'Image requise',
-        });
+        return res.status(400).json({ message: 'Image requise' });
       }
 
-      // Upload image to GCS
-      const imageUrl = await uploadToGCS(req.file);
-
-      const { caption, location, tags, isStory } = req.body;
-
-      const storyExpiry =
-        isStory === 'true'
-          ? new Date(Date.now() + 24 * 60 * 60 * 1000)
-          : null;
+      const imageUrl = await uploadToCloudinary(req.file.buffer);
 
       const post = await Post.create({
         author: req.user._id,
         imageUrl,
-        caption,
-        location,
-        tags: tags
-          ? tags.split(',').map((t) => t.trim())
-          : [],
-        isStory: isStory === 'true',
-        expiresAt: storyExpiry,
+        caption: req.body.caption,
+        location: req.body.location,
+        tags: req.body.tags ? req.body.tags.split(',') : [],
+        isStory: req.body.isStory === 'true',
+        expiresAt:
+          req.body.isStory === 'true'
+            ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+            : null,
       });
 
-      const populated = await post.populate(
-        'author',
-        'username avatar fullName'
-      );
-
-      res.status(201).json(populated);
+      res.status(201).json(post);
     } catch (err) {
-      res.status(500).json({
-        message: err.message,
-      });
+      console.error('POST ERROR:', err);
+      res.status(500).json({ message: err.message });
     }
   }
 );
