@@ -20,17 +20,19 @@ spec:
     spec:
       containers:
         - name: backend
-
           image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-backend:latest
-
           imagePullPolicy: Always
 
           ports:
             - containerPort: 5000
+              name: http
 
           env:
             - name: PORT
               value: "5000"
+
+            - name: HOST
+              value: "0.0.0.0"
 
             - name: MONGO_URI
               value: mongodb://mongo:27017/snapgram
@@ -43,6 +45,24 @@ spec:
 
             - name: CLIENT_URL
               value: "http://YOUR_DOMAIN"
+              
+            - name: CORS_ORIGIN
+              value: "http://YOUR_DOMAIN"
+
+          # Ajouter health check pour GCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
 
 ---
 apiVersion: v1
@@ -59,3 +79,11 @@ spec:
   ports:
     - port: 5000
       targetPort: 5000
+      protocol: TCP
+      name: http
+  
+  # CRITIQUE pour Socket.IO
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 heures

@@ -5,6 +5,8 @@ metadata:
   namespace: snapgram
   annotations:
     kubernetes.io/ingress.class: "gce"
+    # Augmenter timeout pour WebSocket
+    ingress.gcp.kubernetes.io/client-timeout: "3600s"
 spec:
   rules:
     - http:
@@ -20,6 +22,15 @@ spec:
 
           # BACKEND API
           - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
+
+          # SOCKET.IO - AJOUTER CE BLOC
+          - path: /socket.io
             pathType: Prefix
             backend:
               service:
