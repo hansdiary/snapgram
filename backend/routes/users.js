@@ -1,19 +1,11 @@
 const router = require('express').Router();
-const { Storage } = require('@google-cloud/storage');
 const multer = require('multer');
+const cloudinary = require('../config/cloudinary'); // ✅ Cloudinary comme dans posts.js
 
 const User = require('../models/User');
 const Post = require('../models/Post');
 
 const { protect } = require('../middleware/auth');
-
-// =========================
-// GOOGLE CLOUD STORAGE
-// =========================
-
-const storage = new Storage();
-
-const bucket = storage.bucket('snapgram-uploads');
 
 // =========================
 // MULTER CONFIG
@@ -42,37 +34,20 @@ const uploadAvatar = multer({
 });
 
 // =========================
-// GCS UPLOAD FUNCTION
+// CLOUDINARY UPLOAD FUNCTION
 // =========================
 
-const uploadToGCS = (file) => {
+const uploadToCloudinary = (fileBuffer) => {
   return new Promise((resolve, reject) => {
-    const filename = `avatars/${Date.now()}-${file.originalname}`;
-
-    const blob = bucket.file(filename);
-
-    const stream = blob.createWriteStream({
-      resumable: false,
-      metadata: {
-        contentType: file.mimetype,
+    cloudinary.uploader.upload_stream(
+      {
+        folder: 'snapgram-avatars', // ✅ dossier dédié aux avatars
       },
-    });
-
-    stream.on('error', reject);
-
-    stream.on('finish', async () => {
-      try {
-        await blob.makePublic();
-
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-
-        resolve(publicUrl);
-      } catch (err) {
-        reject(err);
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
       }
-    });
-
-    stream.end(file.buffer);
+    ).end(fileBuffer);
   });
 };
 
@@ -132,14 +107,11 @@ router.get('/suggestions', protect, async (req, res) => {
       _id: { $nin: excluded },
     })
       .limit(8)
-      .select(
-        'username fullName avatar followers'
-      );
+      .select('username fullName avatar followers');
 
     const withCount = users.map((u) => ({
       ...u.toJSON(),
-      followersCount:
-        u.followers?.length || 0,
+      followersCount: u.followers?.length || 0,
     }));
 
     res.json(withCount);
@@ -159,14 +131,8 @@ router.get('/:username', protect, async (req, res) => {
     const user = await User.findOne({
       username: req.params.username,
     })
-      .populate(
-        'followers',
-        'username fullName avatar'
-      )
-      .populate(
-        'following',
-        'username fullName avatar'
-      );
+      .populate('followers', 'username fullName avatar')
+      .populate('following', 'username fullName avatar');
 
     if (!user) {
       return res.status(404).json({
@@ -178,10 +144,7 @@ router.get('/:username', protect, async (req, res) => {
       author: user._id,
     })
       .sort({ createdAt: -1 })
-      .populate(
-        'author',
-        'username avatar'
-      );
+      .populate('author', 'username avatar');
 
     res.json({
       user,
@@ -204,35 +167,25 @@ router.put(
   uploadAvatar.single('avatar'),
   async (req, res) => {
     try {
-      const {
-        fullName,
-        bio,
-        website,
-      } = req.body;
+      const { fullName, bio, website } = req.body;
 
-      const update = {
-        fullName,
-        bio,
-        website,
-      };
+      const update = { fullName, bio, website };
 
-      // Upload avatar to GCS
+      // ✅ Upload avatar sur Cloudinary
       if (req.file) {
-        const avatarUrl =
-          await uploadToGCS(req.file);
-
+        const avatarUrl = await uploadToCloudinary(req.file.buffer);
         update.avatar = avatarUrl;
       }
 
-      const user =
-        await User.findByIdAndUpdate(
-          req.user._id,
-          update,
-          { new: true }
-        );
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        update,
+        { new: true }
+      );
 
       res.json({ user });
     } catch (err) {
+      console.error('ERREUR UPDATE PROFILE:', err);
       res.status(500).json({
         message: err.message,
       });
@@ -246,76 +199,42 @@ router.put(
 
 router.post('/:id/follow', protect, async (req, res) => {
   try {
-    if (
-      req.params.id ===
-      req.user._id.toString()
-    ) {
+    if (req.params.id === req.user._id.toString()) {
       return res.status(400).json({
-        message:
-          'Impossible de se suivre soi-même',
+        message: 'Impossible de se suivre soi-même',
       });
     }
 
-    const target = await User.findById(
-      req.params.id
-    );
+    const target = await User.findById(req.params.id);
 
     if (!target) {
       return res.status(404).json({
-        message:
-          'Utilisateur introuvable',
+        message: 'Utilisateur introuvable',
       });
     }
 
-    const isFollowing =
-      target.followers.includes(
-        req.user._id
-      );
+    const isFollowing = target.followers.includes(req.user._id);
 
     if (isFollowing) {
-      await User.findByIdAndUpdate(
-        req.params.id,
-        {
-          $pull: {
-            followers: req.user._id,
-          },
-        }
-      );
-
-      await User.findByIdAndUpdate(
-        req.user._id,
-        {
-          $pull: {
-            following: req.params.id,
-          },
-        }
-      );
-
-      res.json({
-        followed: false,
+      await User.findByIdAndUpdate(req.params.id, {
+        $pull: { followers: req.user._id },
       });
+
+      await User.findByIdAndUpdate(req.user._id, {
+        $pull: { following: req.params.id },
+      });
+
+      res.json({ followed: false });
     } else {
-      await User.findByIdAndUpdate(
-        req.params.id,
-        {
-          $addToSet: {
-            followers: req.user._id,
-          },
-        }
-      );
-
-      await User.findByIdAndUpdate(
-        req.user._id,
-        {
-          $addToSet: {
-            following: req.params.id,
-          },
-        }
-      );
-
-      res.json({
-        followed: true,
+      await User.findByIdAndUpdate(req.params.id, {
+        $addToSet: { followers: req.user._id },
       });
+
+      await User.findByIdAndUpdate(req.user._id, {
+        $addToSet: { following: req.params.id },
+      });
+
+      res.json({ followed: true });
     }
   } catch (err) {
     res.status(500).json({
