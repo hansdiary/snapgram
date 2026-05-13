@@ -49,11 +49,34 @@ export default function ProfilePage() {
     } catch { toast.error('Erreur'); }
   };
 
+  // ✅ Upload avatar immédiatement dès la sélection du fichier
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      form.append('fullName', profile.fullName || '');
+      form.append('bio', profile.bio || '');
+      form.append('website', profile.website || '');
+
+      const { data } = await api.put('/users/profile/update', form);
+      updateUser(data.user);
+      setProfile(data.user);
+      toast.success('Photo mise à jour');
+    } catch {
+      toast.error('Erreur upload photo');
+    }
+  };
+
   const handleEdit = async () => {
     try {
       const form = new FormData();
-      Object.entries(editForm).forEach(([k, v]) => form.append(k, v || ''));
-      if (editForm._avatar) form.append('avatar', editForm._avatar);
+      Object.entries(editForm).forEach(([k, v]) => {
+        if (k !== '_avatar') form.append(k, v || '');
+      });
+
       const { data } = await api.put('/users/profile/update', form);
       updateUser(data.user);
       setProfile(data.user);
@@ -68,13 +91,20 @@ export default function ProfilePage() {
   return (
     <div style={{ paddingBottom: 40 }}>
       <div className="profile-header">
+        {/* ✅ Click sur avatar => input fichier => upload immédiat */}
         <label htmlFor={isMe ? 'avatar-input' : undefined} style={{ cursor: isMe ? 'pointer' : 'default' }}>
           <Avatar user={profile} size={96} />
         </label>
         {isMe && (
-          <input id="avatar-input" type="file" accept="image/*" style={{ display: 'none' }}
-            onChange={(e) => setEditForm(p => ({ ...p, _avatar: e.target.files[0] }))} />
+          <input
+            id="avatar-input"
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleAvatarChange}
+          />
         )}
+
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 4 }}>
             <h1 style={{ fontSize: 24, fontWeight: 300 }}>{profile.username}</h1>
@@ -131,35 +161,36 @@ export default function ProfilePage() {
 
       {/* Grid */}
       <div style={{ borderTop: '1px solid var(--border)', marginBottom: 16 }} />
-      {/* Grille cliquable */}
-<div className="profile-grid">
-  {posts.map(post => (
-    <div key={post._id} className="explore-item" onClick={() => setSelectedPost(post)}>
-      <img src={`${API_URL}${post.imageUrl}`} alt={post.caption} />
-      <div style={{
-        position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 16, color: '#fff', fontWeight: 700, fontSize: 14,
-        transition: 'background 0.2s',
-      }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0)'}
-      >
-        <span>♥ {post.likes?.length || 0}</span>
-        <span>💬 {post.comments?.length || 0}</span>
-      </div>
-    </div>
-  ))}
-</div>
 
-{/* Modal post */}
-{selectedPost && (
-  <div className="modal-overlay" onClick={() => setSelectedPost(null)}>
-    <div style={{ maxWidth: 500, width: '95vw' }} onClick={e => e.stopPropagation()}>
-      <PostCard post={selectedPost} onDelete={(id) => { setPosts(p => p.filter(x => x._id !== id)); setSelectedPost(null); }} />
-    </div>
-  </div>
-)}
+      <div className="profile-grid">
+        {posts.map(post => (
+          <div key={post._id} className="explore-item" onClick={() => setSelectedPost(post)}>
+            <img src={`${API_URL}${post.imageUrl}`} alt={post.caption} />
+            <div style={{
+              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 16, color: '#fff', fontWeight: 700, fontSize: 14,
+              transition: 'background 0.2s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.45)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0)'}
+            >
+              <span>♥ {post.likes?.length || 0}</span>
+              <span>💬 {post.comments?.length || 0}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal post */}
+      {selectedPost && (
+        <div className="modal-overlay" onClick={() => setSelectedPost(null)}>
+          <div style={{ maxWidth: 500, width: '95vw' }} onClick={e => e.stopPropagation()}>
+            <PostCard post={selectedPost} onDelete={(id) => { setPosts(p => p.filter(x => x._id !== id)); setSelectedPost(null); }} />
+          </div>
+        </div>
+      )}
+
       {posts.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--muted)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📷</div>
