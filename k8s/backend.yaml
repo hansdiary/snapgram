@@ -6,7 +6,7 @@ metadata:
   namespace: snapgram
 
 spec:
-  replicas: 1
+  replicas: 2
 
   selector:
     matchLabels:
@@ -66,6 +66,8 @@ spec:
                 secretKeyRef:
                   name: cloudinary-secret
                   key: CLOUDINARY_API_SECRET
+            - name: REDIS_URL
+              value: redis://redis.snapgram.svc.cluster.local:6379
 
           # Ajouter health check pour GCP
           livenessProbe:
@@ -85,23 +87,17 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-
 metadata:
   name: backend
   namespace: snapgram
-
 spec:
   selector:
     app: backend
-
   ports:
     - port: 5000
       targetPort: 5000
-      protocol: TCP
-      name: http
-  
-  # CRITIQUE pour Socket.IO
   sessionAffinity: ClientIP
   sessionAffinityConfig:
     clientIP:
-      timeoutSeconds: 10800  # 3 heures
+      timeoutSeconds: 10800
+  
