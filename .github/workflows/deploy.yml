@@ -11,9 +11,12 @@ env:
   GKE_CLUSTER: snapgram-cluster
   GKE_ZONE: us-central1-a
   REGION: us-central1
-  SOCKET_URL: https://api.snapgram.com
+
+  # IMPORTANT
+  SOCKET_URL: http://34.36.179.232
 
 jobs:
+
 # =========================
 # TEST
 # =========================
@@ -30,19 +33,23 @@ jobs:
           node-version: '20'
 
       - name: Install backend dependencies
-        run: cd backend && npm install
+        run: |
+          cd backend
+          npm install
 
       - name: Check backend syntax
-        run: cd backend && node --check server.js
-
+        run: |
+          cd backend
+          node --check server.js
 
 # =========================
-# BUILD & PUSH
+# BUILD
 # =========================
   build:
     name: Build & Push Docker images
     runs-on: ubuntu-latest
     needs: test
+
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -53,32 +60,38 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Setup gcloud CLI
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      - name: Create Artifact Registry repository (if not exists)
+      - name: Create Artifact Registry
         run: |
           gcloud artifacts repositories create snapgram \
             --repository-format=docker \
             --location=us-central1 \
-            --description="Snapgram images" \
+            --description="Snapgram Docker Images" \
             --project=${{ secrets.GCP_PROJECT_ID }} || true
 
       # =========================
-      # BACKEND IMAGE
+      # BACKEND
       # =========================
       - name: Build & Push backend
         run: |
           BACKEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-backend"
-          docker build -t $BACKEND_IMAGE:${{ github.sha }} -t $BACKEND_IMAGE:latest ./backend
+
+          docker build \
+            -t $BACKEND_IMAGE:${{ github.sha }} \
+            -t $BACKEND_IMAGE:latest \
+            ./backend
+
           docker push $BACKEND_IMAGE:${{ github.sha }}
           docker push $BACKEND_IMAGE:latest
 
       # =========================
-      # FRONTEND IMAGE
+      # FRONTEND
       # =========================
       - name: Build & Push frontend
         run: |
@@ -94,7 +107,6 @@ jobs:
           docker push $FRONTEND_IMAGE:${{ github.sha }}
           docker push $FRONTEND_IMAGE:latest
 
-
 # =========================
 # DEPLOY
 # =========================
@@ -102,6 +114,7 @@ jobs:
     name: Deploy to GKE
     runs-on: ubuntu-latest
     needs: build
+
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -112,7 +125,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Setup gcloud CLI
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Get GKE credentials
@@ -124,12 +137,13 @@ jobs:
       # =========================
       # Replace PROJECT_ID
       # =========================
-      - name: Replace PROJECT_ID in manifests
+      - name: Replace PROJECT_ID
         run: |
-          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/backend.yaml k8s/frontend.yaml
+          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/backend.yaml
+          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/frontend.yaml
 
       # =========================
-      # Apply Kubernetes manifests
+      # Apply manifests
       # =========================
       - name: Apply Kubernetes manifests
         run: |
@@ -148,19 +162,25 @@ jobs:
           BACKEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-backend"
           FRONTEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-frontend"
 
-          kubectl set image deployment/backend backend=$BACKEND_IMAGE:${{ github.sha }} -n snapgram
-          kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE:${{ github.sha }} -n snapgram
+          kubectl set image deployment/backend \
+            backend=$BACKEND_IMAGE:${{ github.sha }} \
+            -n snapgram
+
+          kubectl set image deployment/frontend \
+            frontend=$FRONTEND_IMAGE:${{ github.sha }} \
+            -n snapgram
 
       # =========================
-      # Rollout status
+      # Wait rollout
       # =========================
-      - name: Wait for deployment
+      - name: Wait rollout
         run: |
           kubectl rollout status deployment/backend -n snapgram --timeout=300s
           kubectl rollout status deployment/frontend -n snapgram --timeout=300s
 
       # =========================
-      # Output public endpoint
+      # Show ingress
       # =========================
-      - name: Show frontend service
-        run: kubectl get service frontend -n snapgram
+      - name: Show ingress
+        run: |
+          kubectl get ingress -n snapgram
