@@ -16,6 +16,7 @@ const server = http.createServer(app);
 // CORS ORIGINS
 // =========================
 const allowedOrigins = [
+   "http://34.71.223.194",
   'http://34.36.179.232', // ingress ip
 ];
 
@@ -23,10 +24,6 @@ const allowedOrigins = [
 // EXPRESS CORS
 // =========================
 app.use(cors({
-  origin: [
-    "http://34.71.223.194",
-    "http://34.36.179.232"
-  ],
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
@@ -55,8 +52,8 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ["websocket"],
-  allowEIO3: true,
+  // transports: ["websocket"],
+  // allowEIO3: true,
 });
 
 // =========================

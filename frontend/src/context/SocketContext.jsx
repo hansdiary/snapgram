@@ -15,7 +15,7 @@ export const SocketProvider = ({ children }) => {
 
     socketRef.current = io(SOCKET_URL, {
       path: "/socket.io/",
-      transports: ["websocket"],
+      // transports: ["websocket"],
       withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 10,
