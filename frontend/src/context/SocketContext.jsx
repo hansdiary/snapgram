@@ -13,7 +13,7 @@ export const SocketProvider = ({ children }) => {
 
     const socket = io("http://136.112.28.143", {
       path: "/socket.io/",
-      transports: ["polling", "websocket"], // 🔥 IMPORTANT
+      transports: ["websocket"], // 🔥 IMPORTANT
     });
 
     socketRef.current = socket;
