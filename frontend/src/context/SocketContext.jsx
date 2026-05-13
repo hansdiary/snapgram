@@ -11,7 +11,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (!user) return;
 
-    const socket = io("http://34.36.179.232", {
+    const socket = io("http://136.112.28.143", {
       path: "/socket.io/",
       transports: ["polling", "websocket"], // 🔥 IMPORTANT
     });

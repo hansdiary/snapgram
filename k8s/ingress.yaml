@@ -4,35 +4,48 @@ metadata:
   name: snapgram-ingress
   namespace: snapgram
   annotations:
-    kubernetes.io/ingress.class: "gce"
-    kubernetes.io/ingress.global-static-ip-name: snapgram-ip
+    kubernetes.io/ingress.class: nginx
 
-    # important pour websocket + long polling
-    ingress.gcp.kubernetes.io/timeout-sec: "3600"
+    # WebSocket support (CRITICAL)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+
+    # IMPORTANT for Socket.IO
+    nginx.ingress.kubernetes.io/enable-websocket: "true"
 
 spec:
   rules:
   - http:
       paths:
 
-      - path: /socket.io/*
-        pathType: ImplementationSpecific
+      # ======================
+      # API
+      # ======================
+      - path: /api
+        pathType: Prefix
         backend:
           service:
             name: backend
             port:
               number: 5000
 
-      - path: /api/*
-        pathType: ImplementationSpecific
+      # ======================
+      # SOCKET.IO
+      # ======================
+      - path: /socket.io/
+        pathType: Prefix
         backend:
           service:
             name: backend
             port:
               number: 5000
 
-      - path: /*
-        pathType: ImplementationSpecific
+      # ======================
+      # FRONTEND
+      # ======================
+      - path: /
+        pathType: Prefix
         backend:
           service:
             name: frontend
