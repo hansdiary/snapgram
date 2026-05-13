@@ -26,21 +26,8 @@ export default function MessagesPage() {
   const activeConvRef = useRef(null);
 
   useEffect(() => {
-    if (!socket || !me?._id) return;
-
-    socket.emit('user:join', me._id);
-
-    const handleReceive = (msg) => {
-      console.log('📩 msg reçu:', JSON.stringify(msg));
-      console.log('👤 activeConv:', JSON.stringify(activeConvRef.current));
-    };
-
-    socket.on('message:receive', handleReceive);
-
-    return () => {
-      socket.off('message:receive', handleReceive);
-    };
-  }, [socket, me?._id]);
+    activeConvRef.current = activeConv;
+  }, [activeConv]);
 
   // =========================
   // LOAD CONVERSATIONS
