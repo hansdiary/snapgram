@@ -4,6 +4,8 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 require('dotenv').config();
 
 const app = express();
@@ -15,7 +17,30 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
 });
+
+// Connecter Redis adapter
+const setupRedisAdapter = async () => {
+  try {
+    const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
+    const subClient = pubClient.duplicate();
+
+    pubClient.on('error', (err) => console.error('Redis pub error:', err));
+    subClient.on('error', (err) => console.error('Redis sub error:', err));
+
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('✅ Redis adapter connecté');
+  } catch (err) {
+    console.error('❌ Redis adapter erreur:', err.message);
+    console.log('⚠️ Socket.IO fonctionne sans Redis (mode single instance)');
+  }
+};
+
+setupRedisAdapter();
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
