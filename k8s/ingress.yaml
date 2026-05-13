@@ -3,28 +3,50 @@ kind: Ingress
 metadata:
   name: snapgram-ingress
   namespace: snapgram
+
   annotations:
     kubernetes.io/ingress.class: "gce"
-    kubernetes.io/ingress.global-static-ip-name: snapgram-ip
+
+    # IP statique GCP
+    kubernetes.io/ingress.global-static-ip-name: "snapgram-ip"
+
+    # Timeout long pour WebSocket
+    ingress.gcp.kubernetes.io/backend-protocol: "HTTP"
+
 spec:
   rules:
-  - http:
-      paths:
+    - http:
+        paths:
 
-      # API REST
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: backend
-            port:
-              number: 5000
+          # =========================
+          # API BACKEND
+          # =========================
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
 
-      # Socket.IO (IMPORTANT)
-      - path: /socket.io
-        pathType: Prefix
-        backend:
-          service:
-            name: backend
-            port:
-              number: 5000
+          # =========================
+          # SOCKET.IO
+          # =========================
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
+
+          # =========================
+          # FRONTEND REACT
+          # =========================
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

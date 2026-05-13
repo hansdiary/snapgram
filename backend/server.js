@@ -16,7 +16,6 @@ const server = http.createServer(app);
 // CORS ORIGINS
 // =========================
 const allowedOrigins = [
-  'http://34.71.223.194', // frontend service
   'http://34.36.179.232', // ingress ip
 ];
 
