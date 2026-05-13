@@ -23,6 +23,10 @@ const allowedOrigins = [
 // EXPRESS CORS
 // =========================
 app.use(cors({
+  origin: [
+    "http://34.71.223.194",
+    "http://34.36.179.232"
+  ],
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
@@ -42,16 +46,17 @@ app.use(
 // SOCKET.IO
 // =========================
 const io = new Server(server, {
+  path: "/socket.io/",
   cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
-    credentials: true,
+    origin: [
+      "http://34.71.223.194",
+      "http://34.36.179.232"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   },
-
-  transports: ['websocket'],
-
-  pingTimeout: 60000,
-  pingInterval: 25000,
+  transports: ["websocket"],
+  allowEIO3: true,
 });
 
 // =========================
