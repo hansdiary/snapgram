@@ -11,29 +11,27 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (!user) return;
 
-    const SOCKET_URL ="http://34.36.179.232";
-
-    socketRef.current = io(SOCKET_URL, {
+    const socket = io("http://34.36.179.232", {
       path: "/socket.io/",
-      // transports: ["websocket"],
-      withCredentials: true,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      transports: ["websocket"], // 🔥 IMPORTANT
     });
 
-    socketRef.current.on("connect", () => {
-      console.log("✅ Socket connecté :", socketRef.current.id);
+    socketRef.current = socket;
 
-      socketRef.current.emit("user:join", user._id);
+    socket.on("connect", () => {
+      console.log("✅ Socket connecté:", socket.id);
+
+      socket.emit("user:join", user._id);
     });
 
-    socketRef.current.on("connect_error", (err) => {
+    socket.on("connect_error", (err) => {
       console.error("❌ Socket error:", err.message);
     });
 
     return () => {
-      socketRef.current?.disconnect();
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.disconnect();
     };
   }, [user]);
 
