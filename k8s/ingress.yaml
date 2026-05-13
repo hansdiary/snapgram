@@ -7,7 +7,7 @@ metadata:
     kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.global-static-ip-name: snapgram-ip
 
-    # IMPORTANT pour WebSocket
+    # important pour websocket + long polling
     ingress.gcp.kubernetes.io/timeout-sec: "3600"
 
 spec:
@@ -15,16 +15,6 @@ spec:
   - http:
       paths:
 
-      # API
-      - path: /api/*
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: backend
-            port:
-              number: 5000
-
-      # SOCKET.IO (IMPORTANT)
       - path: /socket.io/*
         pathType: ImplementationSpecific
         backend:
@@ -33,7 +23,14 @@ spec:
             port:
               number: 5000
 
-      # FRONTEND
+      - path: /api/*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: backend
+            port:
+              number: 5000
+
       - path: /*
         pathType: ImplementationSpecific
         backend:
