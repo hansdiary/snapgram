@@ -29,6 +29,12 @@ export default function MessagesPage() {
     activeConvRef.current = activeConv;
   }, [activeConv]);
 
+  const handleReceive = (msg) => {
+  const currentConv = activeConvRef.current;
+  console.log('📩 msg reçu:', JSON.stringify(msg));
+  console.log('👤 activeConv:', JSON.stringify(currentConv));
+};
+
   // =========================
   // LOAD CONVERSATIONS
   // =========================
