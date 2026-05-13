@@ -11,13 +11,11 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (!user) return;
 
-    const SOCKET_URL =
-      process.env.REACT_APP_SOCKET_URL ||
-      "http://34.36.179.232";
+    const SOCKET_URL ="http://34.36.179.232";
 
     socketRef.current = io(SOCKET_URL, {
       path: "/socket.io/",
-      transports: ["polling", "websocket"],
+      transports: ["websocket"],
       withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 10,
