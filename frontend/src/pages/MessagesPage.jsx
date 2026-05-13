@@ -10,7 +10,7 @@ export default function MessagesPage() {
   const { user: me } = useAuth();
   const navigate = useNavigate();
 
-  const socket = useSocket(); // ✅ SOCKET GLOBAL (IMPORTANT)
+  const socket = useSocket();
 
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
@@ -21,6 +21,13 @@ export default function MessagesPage() {
 
   const bottomRef = useRef(null);
   const typingTimer = useRef(null);
+
+  // ✅ FIX : ref toujours à jour, lisible dans les closures socket
+  const activeConvRef = useRef(null);
+
+  useEffect(() => {
+    activeConvRef.current = activeConv;
+  }, [activeConv]);
 
   // =========================
   // LOAD CONVERSATIONS
@@ -64,24 +71,26 @@ export default function MessagesPage() {
   };
 
   // =========================
-  // SOCKET EVENTS (PROPRE)
+  // SOCKET EVENTS
   // =========================
   useEffect(() => {
     if (!socket || !me?._id) return;
 
     socket.emit('user:join', me._id);
 
+    // ✅ FIX : on lit activeConvRef.current au lieu de activeConv
+    // => la closure ne capture plus une valeur périmée
     const handleReceive = (msg) => {
-      if (
-        msg.sender?._id === activeConv?._id ||
-        msg.from === activeConv?._id
-      ) {
+      const currentConv = activeConvRef.current;
+      const senderId = msg.sender?._id || msg.from;
+
+      if (senderId === currentConv?._id) {
         setMessages(prev => [...prev, msg]);
       }
 
       setConversations(prev =>
         prev.map(c =>
-          c.participant._id === (msg.from || msg.sender?._id)
+          c.participant._id === senderId
             ? {
                 ...c,
                 lastMessage: msg,
@@ -92,8 +101,9 @@ export default function MessagesPage() {
       );
     };
 
+    // ✅ FIX : même correction pour handleTyping
     const handleTyping = ({ from, isTyping }) => {
-      if (from === activeConv?._id) {
+      if (from === activeConvRef.current?._id) {
         setTyping(isTyping);
       }
     };
@@ -105,7 +115,10 @@ export default function MessagesPage() {
       socket.off('message:receive', handleReceive);
       socket.off('typing:update', handleTyping);
     };
-  }, [socket, me?._id, activeConv?._id]);
+  }, [socket, me?._id]);
+  // ✅ FIX : activeConv?._id retiré des dépendances
+  // => le listener n'est plus re-créé à chaque changement de conv
+  // => la ref suffit pour avoir la valeur courante
 
   // =========================
   // SEND MESSAGE
