@@ -4,14 +4,21 @@ metadata:
   name: snapgram-ingress
   namespace: snapgram
   annotations:
+    kubernetes.io/ingress.class: nginx
+
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+
     nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
-    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+
+    # IMPORTANT SOCKET.IO
     nginx.ingress.kubernetes.io/enable-websocket: "true"
 
+    # FIX IMPORTANT
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+
 spec:
-  ingressClassName: nginx
   rules:
     - http:
         paths:

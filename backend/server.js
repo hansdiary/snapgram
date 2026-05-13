@@ -38,7 +38,7 @@ const io = new Server(server, {
     origin: CLIENT_ORIGIN,
     credentials: true,
   },
-  transports: ["websocket"], // 🔥 IMPORTANT (NO POLLING)
+  transports: ["websocket", "polling"], // 🔥 IMPORTANT (NO POLLING)
 });
 
 // =========================
