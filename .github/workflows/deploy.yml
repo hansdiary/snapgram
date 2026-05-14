@@ -1,60 +1,159 @@
-name: CI/CD to GKE
+name: CI/CD Snapgram → GKE
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER: snapgram-cluster
+  GKE_ZONE: us-central1-a
+  REGION: us-central1
 
 jobs:
-  deploy:
+
+# =========================
+# TEST
+# =========================
+  test:
+    name: Tests
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupérer le code
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 2. Authentification GCP
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: Check backend syntax
+        run: |
+          cd backend
+          node --check server.js
+
+# =========================
+# BUILD
+# =========================
+  build:
+    name: Build & Push Docker images
+    runs-on: ubuntu-latest
+    needs: test
+
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # 3. Setup gcloud
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      # 4. Configurer Docker pour GCP
       - name: Configure Docker
-        run: gcloud auth configure-docker
-
-      # 5. Build backend image
-      - name: Build & Push Backend
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT }}/backend:latest ./backend
-          docker push gcr.io/${{ secrets.GCP_PROJECT }}/backend:latest
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      # 6. Build frontend image
-      - name: Build & Push Frontend
+      - name: Create Artifact Registry
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT }}/frontend:latest ./frontend
-          docker push gcr.io/${{ secrets.GCP_PROJECT }}/frontend:latest
+          gcloud artifacts repositories create snapgram \
+            --repository-format=docker \
+            --location=us-central1 \
+            --description="Snapgram Docker Images" \
+            --project=${{ secrets.GCP_PROJECT_ID }} || true
 
-      # 7. Récupérer cluster GKE
+      - name: Build & Push backend
+        run: |
+          BACKEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-backend"
+
+          docker build \
+            -t $BACKEND_IMAGE:${{ github.sha }} \
+            -t $BACKEND_IMAGE:latest \
+            ./backend
+
+          docker push $BACKEND_IMAGE:${{ github.sha }}
+          docker push $BACKEND_IMAGE:latest
+
+      - name: Build & Push frontend
+        run: |
+          FRONTEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-frontend"
+
+          docker build \
+            --build-arg REACT_APP_API_URL=/api \
+            -t $FRONTEND_IMAGE:${{ github.sha }} \
+            -t $FRONTEND_IMAGE:latest \
+            ./frontend
+
+          docker push $FRONTEND_IMAGE:${{ github.sha }}
+          docker push $FRONTEND_IMAGE:latest
+
+# =========================
+# DEPLOY
+# =========================
+  deploy:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    needs: build
+
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Get GKE credentials
-        run: |
-          gcloud container clusters get-credentials \
-            ${{ secrets.GKE_CLUSTER }} \
-            --zone ${{ secrets.GKE_ZONE }}
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
 
-      # 8. Remplacer PROJECT_ID dans YAML (IMPORTANT)
-      - name: Replace PROJECT_ID in k8s files
+      - name: Replace PROJECT_ID in manifests
         run: |
-          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT }}/g" k8s/backend.yaml
-          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT }}/g" k8s/frontend.yaml
+          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/backend.yaml
+          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/frontend.yaml
 
-      # 9. Déployer sur Kubernetes
-      - name: Deploy to GKE
+      - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f k8s/
-          kubectl rollout restart deployment backend -n snapgram
-          kubectl rollout restart deployment frontend -n snapgram
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/backend.yaml  -n snapgram
+          kubectl apply -f k8s/frontend.yaml -n snapgram
+          kubectl apply -f k8s/ingress.yaml  -n snapgram
+
+      - name: Update images
+        run: |
+          BACKEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-backend"
+          FRONTEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-frontend"
+
+          kubectl set image deployment/backend \
+            backend=$BACKEND_IMAGE:${{ github.sha }} \
+            -n snapgram
+
+          kubectl set image deployment/frontend \
+            frontend=$FRONTEND_IMAGE:${{ github.sha }} \
+            -n snapgram
+
+      - name: Wait rollout
+        run: |
+          kubectl rollout status deployment/backend  -n snapgram --timeout=300s
+          kubectl rollout status deployment/frontend -n snapgram --timeout=300s
+
+      - name: Show ingress
+        run: |
+          kubectl get ingress -n snapgram

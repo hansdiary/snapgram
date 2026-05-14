@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: gcr.io/PROJECT_ID/backend:latest
+          image: gcr.io/${{ secrets.GCP_PROJECT }}/backend:latest
           ports:
             - containerPort: 5000
           env:
