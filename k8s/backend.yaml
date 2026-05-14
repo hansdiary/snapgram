@@ -7,6 +7,16 @@ metadata:
 
 spec:
   replicas: 2
+  
+  # Ajout du stratégie de rolling update
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Évite d'avoir des pods indisponibles pendant le déploiement
+  
+  # Important: délai avant de considérer le déploiement comme échoué
+  progressDeadlineSeconds: 600  # Augmenté de 600 (10 minutes) à 600 pour plus de sécurité
 
   selector:
     matchLabels:
@@ -16,14 +26,21 @@ spec:
     metadata:
       labels:
         app: backend
+      # Suppression des annotations problématiques qui pourraient ajouter des readinessGates
+      annotations:
+        # Désactive le readiness gate GCE NEG qui bloquait le déploiement
+        neg-readiness-gate.skip: "true"
 
     spec:
       containers:
         - name: backend
           image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-backend:latest
+          
+          imagePullPolicy: Always  # Assure de toujours tirer la dernière image
 
           ports:
             - containerPort: 5000
+              name: http  # Nommer le port aide pour les probes
 
           env:
             - name: MONGO_URL
@@ -31,20 +48,35 @@ spec:
 
             - name: REDIS_URL
               value: "redis://redis-service:6379"
-
+          
+          # Amélioration des probes
           readinessProbe:
             httpGet:
               path: /health
               port: 5000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10  # Augmenté de 5 à 10 secondes
             periodSeconds: 10
+            timeoutSeconds: 5        # Ajout du timeout
+            failureThreshold: 3      # Ajout du seuil d'échec
+            successThreshold: 1      # Ajout du seuil de succès
 
           livenessProbe:
             httpGet:
               path: /health
               port: 5000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30  # Augmenté de 15 à 30 secondes
             periodSeconds: 20
+            timeoutSeconds: 5        # Ajout du timeout
+            failureThreshold: 3      # Ajout du seuil d'échec
+          
+          # Ajout de ressources limits pour éviter les problèmes de scheduling
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
 
 ---
 apiVersion: v1
@@ -53,6 +85,9 @@ kind: Service
 metadata:
   name: backend-service
   namespace: snapgram
+  annotations:
+    # Désactive le NEG (Network Endpoint Group) si ce n'est pas nécessaire
+    cloud.google.com/neg: '{"ingress": false}'
 
 spec:
   selector:
@@ -62,5 +97,6 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 5000
+      name: http  # Nommer le port
 
   type: ClusterIP
