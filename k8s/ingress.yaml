@@ -5,14 +5,15 @@ metadata:
   namespace: snapgram
 
   annotations:
-    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "snapgram-ip"
 
 spec:
+  ingressClassName: gce
+
   rules:
     - http:
         paths:
 
-          # API
           - path: /api/*
             pathType: ImplementationSpecific
             backend:
@@ -21,7 +22,6 @@ spec:
                 port:
                   number: 5000
 
-          # SOCKET.IO
           - path: /socket.io/*
             pathType: ImplementationSpecific
             backend:
@@ -30,7 +30,6 @@ spec:
                 port:
                   number: 5000
 
-          # FRONTEND
           - path: /*
             pathType: ImplementationSpecific
             backend:
