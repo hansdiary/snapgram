@@ -14,11 +14,14 @@ spec:
         app: frontend
     spec:
       containers:
-        - name: frontend
-          image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-frontend:latest
-          ports:
-            - containerPort: 80
+      - name: frontend
+        image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+
 ---
+# NodePort requis pour GCE Ingress
 apiVersion: v1
 kind: Service
 metadata:
@@ -27,11 +30,7 @@ metadata:
 spec:
   selector:
     app: frontend
-  type: LoadBalancer
   ports:
-    - port: 80
-      targetPort: 80
-  sessionAffinity: ClientIP
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 10800
+  - port: 80
+    targetPort: 80
+  type: NodePort

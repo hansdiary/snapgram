@@ -72,9 +72,6 @@ jobs:
             --description="Snapgram Docker Images" \
             --project=${{ secrets.GCP_PROJECT_ID }} || true
 
-      # =========================
-      # BACKEND
-      # =========================
       - name: Build & Push backend
         run: |
           BACKEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-backend"
@@ -87,11 +84,6 @@ jobs:
           docker push $BACKEND_IMAGE:${{ github.sha }}
           docker push $BACKEND_IMAGE:latest
 
-      # =========================
-      # FRONTEND
-      # ✅ REACT_APP_API_URL=/api — GCE Ingress route /api/* vers le backend
-      # ✅ Plus de SOCKET_URL hardcodée — on utilise window.location.origin
-      # =========================
       - name: Build & Push frontend
         run: |
           FRONTEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-frontend"
@@ -132,17 +124,18 @@ jobs:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_ZONE }}
 
-      # =========================
-      # Apply manifests
-      # ✅ Plus de sed PROJECT_ID — l'image est mise à jour via kubectl set image
-      # =========================
+      - name: Replace PROJECT_ID in manifests
+        run: |
+          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/backend.yaml
+          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/frontend.yaml
+
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f k8s/k8s.yaml -n snapgram
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/backend.yaml  -n snapgram
+          kubectl apply -f k8s/frontend.yaml -n snapgram
+          kubectl apply -f k8s/ingress.yaml  -n snapgram
 
-      # =========================
-      # Update images
-      # =========================
       - name: Update images
         run: |
           BACKEND_IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/snapgram/snapgram-backend"
@@ -155,19 +148,12 @@ jobs:
           kubectl set image deployment/frontend \
             frontend=$FRONTEND_IMAGE:${{ github.sha }} \
             -n snapgram
-            
 
-      # =========================
-      # Wait rollout
-      # =========================
       - name: Wait rollout
         run: |
-          kubectl rollout status deployment/backend -n snapgram --timeout=300s
+          kubectl rollout status deployment/backend  -n snapgram --timeout=300s
           kubectl rollout status deployment/frontend -n snapgram --timeout=300s
 
-      # =========================
-      # Show ingress
-      # =========================
       - name: Show ingress
         run: |
           kubectl get ingress -n snapgram
