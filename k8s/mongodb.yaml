@@ -1,10 +1,9 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: mongo
   namespace: snapgram
 spec:
-  serviceName: mongo
   replicas: 1
   selector:
     matchLabels:
@@ -16,29 +15,18 @@ spec:
     spec:
       containers:
         - name: mongo
-          image: mongo:7
+          image: mongo:6
           ports:
             - containerPort: 27017
-          volumeMounts:
-            - name: mongo-data
-              mountPath: /data/db
-  volumeClaimTemplates:
-    - metadata:
-        name: mongo-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo
+  name: mongo-service
   namespace: snapgram
 spec:
   selector:
     app: mongo
   ports:
     - port: 27017
-  clusterIP: None
+  type: ClusterIP

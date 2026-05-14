@@ -14,84 +14,25 @@ spec:
         app: backend
     spec:
       containers:
-      - name: backend
-        image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-backend:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 5000
-          name: http
-        env:
-        - name: PORT
-          value: "5000"
-        - name: HOST
-          value: "0.0.0.0"
-        - name: MONGO_URI
-          value: mongodb://mongo:27017/snapgram
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: snapgram-secrets
-              key: jwt-secret
-        - name: CLIENT_URL
-          value: "http://34.8.241.218"
-        - name: CORS_ORIGIN
-          value: "http://34.8.241.218"
-        - name: CLOUDINARY_CLOUD_NAME
-          valueFrom:
-            secretKeyRef:
-              name: cloudinary-secret
-              key: CLOUDINARY_CLOUD_NAME
-        - name: CLOUDINARY_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: cloudinary-secret
-              key: CLOUDINARY_API_KEY
-        - name: CLOUDINARY_API_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: cloudinary-secret
-              key: CLOUDINARY_API_SECRET
-        - name: REDIS_URL
-          value: redis://redis.snapgram.svc.cluster.local:6379
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-
+        - name: backend
+          image: gcr.io/PROJECT_ID/backend:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: MONGO_URL
+              value: "mongodb://mongo-service:27017/db"
+            - name: REDIS_URL
+              value: "redis-service:6379"
 ---
-# ClusterIP pour communication interne
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend
+  name: backend-service
   namespace: snapgram
 spec:
   selector:
     app: backend
   ports:
-  - port: 5000
-    targetPort: 5000
+    - port: 80
+      targetPort: 5000
   type: ClusterIP
-
----
-# NodePort requis pour GCE Ingress
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend-nodeport
-  namespace: snapgram
-spec:
-  selector:
-    app: backend
-  ports:
-  - port: 5000
-    targetPort: 5000
-  type: NodePort
