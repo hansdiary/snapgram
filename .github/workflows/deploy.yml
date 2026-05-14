@@ -12,9 +12,6 @@ env:
   GKE_ZONE: us-central1-a
   REGION: us-central1
 
-  # IMPORTANT
-  SOCKET_URL: http://34.36.179.232
-
 jobs:
 
 # =========================
@@ -92,6 +89,8 @@ jobs:
 
       # =========================
       # FRONTEND
+      # ✅ REACT_APP_API_URL=/api — GCE Ingress route /api/* vers le backend
+      # ✅ Plus de SOCKET_URL hardcodée — on utilise window.location.origin
       # =========================
       - name: Build & Push frontend
         run: |
@@ -99,7 +98,6 @@ jobs:
 
           docker build \
             --build-arg REACT_APP_API_URL=/api \
-            --build-arg REACT_APP_SOCKET_URL=${{ env.SOCKET_URL }} \
             -t $FRONTEND_IMAGE:${{ github.sha }} \
             -t $FRONTEND_IMAGE:latest \
             ./frontend
@@ -135,24 +133,12 @@ jobs:
           location: ${{ env.GKE_ZONE }}
 
       # =========================
-      # Replace PROJECT_ID
-      # =========================
-      - name: Replace PROJECT_ID
-        run: |
-          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/backend.yaml
-          sed -i "s/PROJECT_ID/${{ secrets.GCP_PROJECT_ID }}/g" k8s/frontend.yaml
-
-      # =========================
       # Apply manifests
+      # ✅ Plus de sed PROJECT_ID — l'image est mise à jour via kubectl set image
       # =========================
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/mongodb.yaml
-          kubectl apply -f k8s/redis.yaml
-          kubectl apply -f k8s/backend.yaml
-          kubectl apply -f k8s/frontend.yaml
-          kubectl apply -f k8s/ingress.yaml
+          kubectl apply -f k8s/k8s.yaml -n snapgram
 
       # =========================
       # Update images

@@ -1,0 +1,188 @@
+# =========================
+# BACKEND DEPLOYMENT (2 replicas = load balancing)
+# =========================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: snapgram
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: us-central1-docker.pkg.dev/test-project-391818/snapgram/snapgram-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: PORT
+          value: "5000"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: MONGO_URI
+          value: mongodb://mongo:27017/snapgram
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: snapgram-secrets
+              key: jwt-secret
+        - name: CLIENT_URL
+          value: http://34.71.223.194
+        - name: CORS_ORIGIN
+          value: http://34.71.223.194
+        - name: CLOUDINARY_CLOUD_NAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudinary-secret
+              key: CLOUDINARY_CLOUD_NAME
+        - name: CLOUDINARY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cloudinary-secret
+              key: CLOUDINARY_API_KEY
+        - name: CLOUDINARY_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cloudinary-secret
+              key: CLOUDINARY_API_SECRET
+        - name: REDIS_URL
+          value: redis://redis.snapgram.svc.cluster.local:6379
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+---
+# =========================
+# BACKEND SERVICE (ClusterIP — load balancing entre les 2 pods)
+# =========================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: snapgram
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: ClusterIP
+
+---
+# =========================
+# FRONTEND DEPLOYMENT (1 replica)
+# =========================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: snapgram
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: us-central1-docker.pkg.dev/test-project-391818/snapgram/snapgram-frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+
+---
+# =========================
+# FRONTEND SERVICE (NodePort — requis pour GCE Ingress)
+# =========================
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: snapgram
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: NodePort
+
+---
+# =========================
+# BACKEND SERVICE NODEPORT (requis pour GCE Ingress)
+# =========================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-nodeport
+  namespace: snapgram
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: NodePort
+
+---
+# =========================
+# GCE INGRESS
+# /api/*      → backend (load balancé sur 2 pods)
+# /socket.io/* → backend (load balancé sur 2 pods)
+# /*          → frontend (Apache proxy vers backend)
+# =========================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: snapgram-ingress
+  namespace: snapgram
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: snapgram-ip
+spec:
+  ingressClassName: gce
+  rules:
+  - http:
+      paths:
+      - path: /api/*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: backend-nodeport
+            port:
+              number: 5000
+      - path: /socket.io/*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: backend-nodeport
+            port:
+              number: 5000
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80

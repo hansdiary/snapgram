@@ -7,18 +7,19 @@ const SocketContext = createContext(null);
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const socketRef = useRef(null);
-  const [socket, setSocket] = useState(null); // ✅ state au lieu de ref
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     if (!user) return;
 
-    const newSocket = io("http://136.112.28.143", {
+    // ✅ Même origine que le frontend — l'Ingress GCE route /socket.io/* vers le backend
+    const newSocket = io(window.location.origin, {
       path: "/socket.io/",
-      transports: ["websocket"],
+      transports: ["websocket", "polling"],
     });
 
     socketRef.current = newSocket;
-    setSocket(newSocket); // ✅ déclenche un re-render avec le vrai socket
+    setSocket(newSocket);
 
     newSocket.on("connect", () => {
       console.log("✅ Socket connecté:", newSocket.id);
