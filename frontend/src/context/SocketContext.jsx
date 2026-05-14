@@ -14,7 +14,7 @@ export const SocketProvider = ({ children }) => {
 
     const newSocket = io("http://136.112.28.143", {
       path: "/socket.io/",
-      transports: ["websocket", "polling"],
+      transports: ["websocket"],
     });
 
     socketRef.current = newSocket;
