@@ -132,7 +132,9 @@ app.set("io", io);
 // HEALTH CHECK
 // =========================
 app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
+  res.status(200).json({
+    status: "OK"
+  });
 });
 
 // =========================
