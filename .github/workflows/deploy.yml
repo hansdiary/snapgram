@@ -155,6 +155,7 @@ jobs:
           kubectl set image deployment/frontend \
             frontend=$FRONTEND_IMAGE:${{ github.sha }} \
             -n snapgram
+            
 
       # =========================
       # Wait rollout
