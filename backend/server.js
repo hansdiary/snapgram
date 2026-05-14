@@ -47,7 +47,7 @@ const io = new Server(server, {
 const setupRedis = async () => {
   try {
     const pubClient = createClient({
-      url: process.env.REDIS_URL || "redis://redis:6379",
+      url: process.env.REDIS_URL,
     });
 
     const subClient = pubClient.duplicate();
@@ -138,7 +138,7 @@ app.get("/health", (req, res) => {
 // =========================
 // DB
 // =========================
-mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/snapgram")
+mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log("✅ MongoDB OK"))
   .catch(err => console.error(err));
 
