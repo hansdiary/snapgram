@@ -32,10 +32,11 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const io = new Server(server, {
   path: "/socket.io/",
   cors: {
-    origin: process.env.CLIENT_URL || '*',
+    origin: true, // reflète l'origine
     credentials: true,
   },
-  transports: ["polling"], 
+  transports: ["polling"],
+  allowEIO3: true,
 });
 
 // =========================
