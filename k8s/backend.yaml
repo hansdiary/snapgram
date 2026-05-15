@@ -23,29 +23,39 @@ spec:
         - name: backend
           image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-backend:latest
           imagePullPolicy: Always
+
           ports:
             - containerPort: 5000
               name: http
-                    env:
+
+          # Variables d'environnement normales
+          env:
             - name: PORT
               value: "5000"
+
             - name: MONGO_URL
               value: "mongodb://mongo-service:27017/snapgram"
+
             - name: REDIS_URL
               value: "redis://redis-service:6379"
+
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: snapgram-secrets
                   key: jwt-secret
+
             - name: CLIENT_URL
               value: "http://136.110.175.225"
+
             - name: NODE_ENV
               value: "production"
 
+          # 🔥 Injection complète du secret (Cloudinary inclus)
           envFrom:
             - secretRef:
                 name: snapgram-secrets
+
           readinessProbe:
             httpGet:
               path: /healthz
@@ -55,6 +65,7 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
             successThreshold: 1
+
           livenessProbe:
             httpGet:
               path: /healthz
@@ -63,6 +74,7 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
+
           resources:
             requests:
               memory: "128Mi"
@@ -70,6 +82,7 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+
 ---
 apiVersion: v1
 kind: Service
@@ -77,7 +90,6 @@ metadata:
   name: backend-service
   namespace: snapgram
   annotations:
-    # NEG sur le SERVICE (pas le Deployment)
     cloud.google.com/neg: '{"ingress": true}'
 spec:
   selector:
