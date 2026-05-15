@@ -19,7 +19,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     socketRef.current = newSocket;
-    setSocket(newSocket);comment 
+    setSocket(newSocket);
 
     newSocket.on("connect", () => {
       console.log("✅ Socket connecté:", newSocket.id);
