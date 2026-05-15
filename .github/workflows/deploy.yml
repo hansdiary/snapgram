@@ -137,6 +137,7 @@ jobs:
           kubectl apply -f k8s/ingress.yaml  -n snapgram
           kubectl apply -f k8s/mongodb.yaml -n snapgram
           kubectl apply -f k8s/redis.yaml  -n snapgram
+          kubectl apply -f k8s/secret.yaml -n snapgram
 
       - name: Update images
         run: |
