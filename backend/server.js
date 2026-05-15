@@ -12,16 +12,13 @@ require("dotenv").config();
 const app = express();
 const server = http.createServer(app);
 
-// =========================
-// CONFIG
-// =========================
-const CLIENT_ORIGIN = "http://34.71.223.194";
+
 
 // =========================
 // EXPRESS MIDDLEWARE
 // =========================
 app.use(cors({
-  origin: CLIENT_ORIGIN,
+  origin: process.env.CLIENT_URL || '*',
   credentials: true,
 }));
 
@@ -136,6 +133,10 @@ app.get("/health", (req, res) => {
     status: "OK"
   });
 });
+
+// Health check GKE
+app.get('/healthz', (req, res) => res.status(200).json({ status: 'ok' }));
+app.get('/', (req, res) => res.status(200).json({ status: 'ok' }));
 
 // =========================
 // DB

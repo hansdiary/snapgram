@@ -89,7 +89,7 @@ metadata:
   namespace: snapgram
   annotations:
     # Désactive le NEG (Network Endpoint Group) si ce n'est pas nécessaire
-    cloud.google.com/neg: '{"ingress": false}'
+    cloud.google.com/neg: '{"ingress": true}'
 
 spec:
   selector:
