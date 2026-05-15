@@ -15,7 +15,7 @@ export const SocketProvider = ({ children }) => {
     // ✅ Même origine que le frontend — l'Ingress GCE route /socket.io/* vers le backend
     const newSocket = io(window.location.origin, {
       path: "/socket.io/",
-      transports: ["websocket", "polling"],
+      transports: ["polling"],
     });
 
     socketRef.current = newSocket;
