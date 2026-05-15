@@ -26,7 +26,7 @@ spec:
           ports:
             - containerPort: 5000
               name: http
-          env:
+                    env:
             - name: PORT
               value: "5000"
             - name: MONGO_URL
@@ -42,6 +42,10 @@ spec:
               value: "http://136.110.175.225"
             - name: NODE_ENV
               value: "production"
+
+          envFrom:
+            - secretRef:
+                name: snapgram-secrets
           readinessProbe:
             httpGet:
               path: /healthz
