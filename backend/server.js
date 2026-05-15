@@ -32,7 +32,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const io = new Server(server, {
   path: "/socket.io/",
   cors: {
-    origin: CLIENT_ORIGIN,
+    origin: process.env.CLIENT_URL || '*',
     credentials: true,
   },
   transports: ["websocket"], 
