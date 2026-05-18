@@ -137,6 +137,14 @@ app.get("/health", (req, res) => {
   });
 });
 
+app.get('/cpu', (req, res) => {
+  const end = Date.now() + 5000;
+  while (Date.now() < end) {
+    Math.sqrt(Math.random());
+  }
+  res.send("CPU load done");
+});
+
 // Health check GKE
 app.get('/healthz', (req, res) => res.status(200).json({ status: 'ok' }));
 app.get('/', (req, res) => res.status(200).json({ status: 'ok' }));
