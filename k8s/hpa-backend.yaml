@@ -1,43 +1,42 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
+
 metadata:
   name: backend-hpa
   namespace: snapgram
+
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: backend
 
-  minReplicas: 2          # Minimum 2 (requis)
-  maxReplicas: 8          # Réduit: 10 → 8 (logique avec min 2)
+  minReplicas: 2
+  maxReplicas: 10
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+
+      selectPolicy: Max
+
+    scaleDown:
+      stabilizationWindowSeconds: 60
 
   metrics:
     - type: Resource
       resource:
         name: cpu
+
         target:
           type: Utilization
-          averageUtilization: 80   # Augmenté: 70 → 80 (pour 2 pods)
-
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 85   # Augmenté: 75 → 85
-
-  behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-      - type: Percent
-        value: 50                   # Doubler avec 2 pods → 3,4,6,8
-        periodSeconds: 15
-      selectPolicy: Max
-    scaleDown:
-      stabilizationWindowSeconds: 180
-      policies:
-      - type: Percent
-        value: 25
-        periodSeconds: 60
+          averageUtilization: 50

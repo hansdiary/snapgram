@@ -3,26 +3,29 @@ kind: Deployment
 metadata:
   name: backend
   namespace: snapgram
+
 spec:
-  replicas: 2  # Gardé à 2 (imposé par le professeur)
+  replicas: 2
+
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
-  progressDeadlineSeconds: 600
+
   selector:
     matchLabels:
       app: backend
+
   template:
     metadata:
       labels:
         app: backend
-      annotations:
-        neg-readiness-gate.skip: "true"  # Important pour GCE
+
     spec:
       containers:
         - name: backend
+
           image: us-central1-docker.pkg.dev/PROJECT_ID/snapgram/snapgram-backend:latest
           imagePullPolicy: Always
 
@@ -33,6 +36,12 @@ spec:
           env:
             - name: PORT
               value: "5000"
+
+            - name: NODE_ENV
+              value: "production"
+
+            - name: CLIENT_URL
+              value: "http://136.110.175.225"
 
             - name: MONGO_URL
               value: "mongodb://mongo-service:27017/snapgram"
@@ -46,73 +55,27 @@ spec:
                   name: snapgram-secrets
                   key: jwt-secret
 
-            - name: CLIENT_URL
-              value: "http://136.110.175.225"
-
-            - name: NODE_ENV
-              value: "production"
-            
-            # Optimisations critiques pour 2 pods
-            - name: UV_THREADPOOL_SIZE
-              value: "128"
-            
-            - name: NODE_OPTIONS
-              value: "--max-old-space-size=1536"
-            
-            - name: MAX_CONNECTIONS
-              value: "1000"
-
-          envFrom:
-            - secretRef:
-                name: snapgram-secrets
-
-          # Probes optimisées
           readinessProbe:
             httpGet:
               path: /healthz
               port: 5000
-            initialDelaySeconds: 20
+            initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
-            failureThreshold: 3
-            successThreshold: 1
 
           livenessProbe:
             httpGet:
               path: /healthz
               port: 5000
-            initialDelaySeconds: 45
-            periodSeconds: 15
+            initialDelaySeconds: 20
+            periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 3
 
-          # Resources augmentées (important pour 2 pods)
           resources:
             requests:
-              memory: "512Mi"   # Augmenté: 128Mi → 512Mi
-              cpu: "500m"       # Augmenté: 100m → 500m
-            limits:
-              memory: "2Gi"     # Augmenté: 512Mi → 2Gi
-              cpu: "2000m"      # Augmenté: 500m → 2000m
+              cpu: "250m"
+              memory: "256Mi"
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend-service
-  namespace: snapgram
-  annotations:
-    cloud.google.com/neg: '{"ingress": true}'
-spec:
-  selector:
-    app: backend
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 5000
-      name: http
-  type: ClusterIP
-  sessionAffinity: ClientIP
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 10800
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
