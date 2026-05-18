@@ -27,8 +27,7 @@ spec:
           ports:
             - containerPort: 5000
               name: http
-
-          # Variables d'environnement normales
+              
           env:
             - name: PORT
               value: "5000"
@@ -51,7 +50,6 @@ spec:
             - name: NODE_ENV
               value: "production"
 
-          # 🔥 Injection complète du secret (Cloudinary inclus)
           envFrom:
             - secretRef:
                 name: snapgram-secrets

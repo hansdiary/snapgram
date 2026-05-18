@@ -33,7 +33,6 @@ metadata:
   name: frontend-service
   namespace: snapgram
   annotations:
-    # NEG sur le SERVICE (pas le Deployment)
     cloud.google.com/neg: '{"ingress": true}'
 spec:
   selector:
