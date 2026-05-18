@@ -1,7 +1,7 @@
-# ── Stage 1 : build React ──────────────────────────────────────
+# build React
 FROM node:20-alpine AS builder
-
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm install
 
@@ -12,18 +12,13 @@ ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 RUN npm run build
 
-# ── Stage 2 : serve via Apache ─────────────────────────────────
-FROM httpd:2.4-alpine
+# nginx
+FROM nginx:alpine
 
-# ✅ Seul rewrite est nécessaire, plus de proxy
-RUN sed -i \
-  -e 's/#LoadModule rewrite_module/LoadModule rewrite_module/' \
-  /usr/local/apache2/conf/httpd.conf
+COPY --from=builder /app/build /usr/share/nginx/html
 
-COPY --from=builder /app/build /usr/local/apache2/htdocs/
-COPY apache.conf /usr/local/apache2/conf/extra/snapgram.conf
-
-RUN echo "Include conf/extra/snapgram.conf" >> /usr/local/apache2/conf/httpd.conf
+# 🔥 IMPORTANT: remplacer default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
-CMD ["httpd-foreground"]
+CMD ["nginx", "-g", "daemon off;"]
