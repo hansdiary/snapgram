@@ -35,6 +35,8 @@ const io = new Server(server, {
     origin: true, // reflète l'origine
     credentials: true,
   },
+   pingTimeout: 60000,
+  pingInterval: 25000,
   transports: ["websocket","polling"],
   allowEIO3: true,
 });
